@@ -185,7 +185,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter
             iteration += 1
             if iteration >= opt.iterations:
                 break
-        end_time = time.time()
+    end_time = time.time()
     elapsed_time = end_time - start_time
 
     with open(os.path.join(dataset.model_path, "optimization_time.log"), "a") as file:
