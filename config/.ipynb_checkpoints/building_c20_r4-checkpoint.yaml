@@ -5,12 +5,17 @@ model_params: {
         kwargs: {}
     },
     sh_degree: 3,
-    source_path: "data/mill19/rubble-pixsfm/train",
+    source_path: "data/mill19/building-pixsfm/train",
+    partition_name: "building_c20_r4",
+    pretrain_path: "output/building_coarse/point_cloud/iteration_30000",
     model_path: "",
     images: "images",
+    block_dim: [4, 1, 5],
+    aabb: [-140, -100, 0, -10, 900, 250],
+    ssim_threshold: 0.1,
     resolution: 4,
     white_background: False,
-    data_device: "cpu",
+    data_device: "cuda",
     eval: False,
 }
 
@@ -25,13 +30,13 @@ pipeline_params: {
 # Optimization Parameters
 optim_params: {
     iterations: 30_000,
-    position_lr_init: 0.00016,
-    position_lr_final: 0.0000016,
+    position_lr_init: 0.000032,
+    position_lr_final: 0.00000032,
     position_lr_delay_mult: 0.01,
     position_lr_max_steps: 30_000,
     feature_lr: 0.0025,
     opacity_lr: 0.05,
-    scaling_lr: 0.005,
+    scaling_lr: 0.002,
     rotation_lr: 0.001,
     percent_dense: 0.01,
     lambda_dssim: 0.2,
