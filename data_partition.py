@@ -157,7 +157,7 @@ if __name__ == "__main__":
     camera_mask = block_partitioning(scene.getTrainCameras(), gaussians, lp, pp, 1.0, args.quiet, args.disable_inblock, args.simple_selection)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    with open(os.path.join(dataset.model_path, "data_partition_time.log"), "a") as file:
+    with open(os.path.join(lp.model_path, "data_partition_time.log"), "a") as file:
         file.write(f"data partition elapsed_time:{format_seconds(elapsed_time)}\n")
     camera_mask = camera_mask.cpu().numpy()
     np.save(os.path.join(lp.source_path, "data_partitions", f"{config_name}.npy"), camera_mask)
