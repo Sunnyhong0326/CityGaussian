@@ -5,7 +5,7 @@ model_params: {
         kwargs: {}
     },
     sh_degree: 3,
-    source_path: "data/matrix_city/aerial/train/block_all",
+    source_path: "data/matrix_city/aerial/train",
     model_path: "",
     images: "images",
     resolution: -1,
