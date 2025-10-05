@@ -208,8 +208,8 @@ export CODE_DIR="/mnt/nfs/sunnyhong/code"
 'export TEST_PATH=$TEST_PATH' \
 'export DATASET=$DATASET' \
 'bash scripts/run_citygs.sh' \
-'mkdir -p $RESULT_DIR/mygs/citygs/$DATASET' \
+'mkdir -p $RESULT_DIR/citygs/$DATASET' \
 'rm -rf /app/output/$DATASET/$COARSE_CONFIG' \
-'cp -r /app/output/* $RESULT_DIR/mygs/citygs/$DATASET'" \
+'cp -r /app/output/* $RESULT_DIR/citygs/$DATASET'" \
 "CityGS-baseline CityGS-$RESULT"
 ```
