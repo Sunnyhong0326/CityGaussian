@@ -71,11 +71,10 @@ export RESULT="building"
 
 
 <pre><code>export DATASET="ITRI_full"
-export COARSE_CONFIG_NAME="itri_full_coarse"
-export CONFIG_NAME="itri_full_c9_r4"
+export COARSE_CONFIG="itri_coarse"
+export CONFIG="itri_c9_r4"
 export TEST_PATH="data/ITRI_full/test"
 export out_name="test"
-export FINAL_DIR="output/$DATASET"
 export max_block_id=8
 # For OVX
 export DATA_DIR="ITRI_full"
@@ -106,11 +105,10 @@ export RESULT="matrixcity"
 
 
 <pre><code>export DATASET="NTHU_ABCDE"
-export COARSE_CONFIG_NAME="nthu_campus_coarse"
-export CONFIG_NAME="nthu_campus_c10_r4"
+export COARSE_CONFIG="nthu_campus_coarse"
+export CONFIG="nthu_campus_c10_r4"
 export TEST_PATH="data/NTHU_ABCDE/test"
 export out_name="test"
-export FINAL_DIR="output/$DATASET"
 export max_block_id=9
 # For OVX
 export DATA_DIR="NTHU_ABCDE"
