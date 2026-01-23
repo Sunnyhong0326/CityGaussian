@@ -34,6 +34,7 @@ from torch.utils.data import DataLoader
 from argparse import ArgumentParser, Namespace
 from arguments import GroupParams
 from utils.general_utils import format_seconds
+from utils.profile_utils import write_optimization_profile
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter_iterations, checkpoint_iterations, checkpoint, max_cache_num, debug_from):
     first_iter = 0
@@ -188,9 +189,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    with open(os.path.join(dataset.model_path, "optimization_time.log"), "a") as file:
-        file.write(f"Block_id: {dataset.block_id}, max_memory_allocated: {max_memory_allocated} (GB)\n")
-        file.write(f"Block_id: {dataset.block_id}, elapsed_time:{format_seconds(elapsed_time)}\n")
+    write_optimization_profile(dataset, max_memory_allocated, elapsed_time)
 
 def prepare_output_and_logger(args):    
     if not args.model_path:
@@ -205,6 +204,8 @@ def prepare_output_and_logger(args):
             else:
                 raise ValueError("Invalid block_id: {}".format(args.block_id))
         
+    args.profile_path = args.model_path
+
     # Set up output folder
     print("Output folder: {}".format(args.model_path))
     os.makedirs(args.model_path, exist_ok = True)
