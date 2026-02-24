@@ -5,9 +5,9 @@ model_params: {
         kwargs: {}
     },
     sh_degree: 3,
-    source_path: "data/urban_scene_3d/sci-art-pixsfm/train",
+    source_path: "/mnt/nfs/sunnyhong/data/non-COLMAP/urban_scene_3d/sci-art-pixsfm/train",
     partition_name: "sciart_c9_r4",
-    pretrain_path: "output/sciart_coarse/point_cloud/iteration_30000",
+    pretrain_path: "/mnt/nfs/sunnyhong/output/LoBEGS/coarse/non_colmap_ssim_no_BG/sci-art-pixsfm/coarse/point_cloud/iteration_30000",
     model_path: "",
     images: "images",
     block_dim: [3, 1, 3],
