@@ -22,52 +22,21 @@ def _load_block_dim_and_source(config_path):
     return block_dim, source_path
 
 
-def _compute_segments(blocks, plane_indices):
+def _compute_uniform_segments(block_dim, plane_indices):
     v_ax, h_ax, _ = plane_indices
-    v_vals = []
-    h_vals = []
-    for blk in blocks:
-        aabb = np.asarray(blk["aabb"], dtype=np.float64)
-        v_vals.extend([aabb[2 * v_ax], aabb[2 * v_ax + 1]])
-        h_vals.extend([aabb[2 * h_ax], aabb[2 * h_ax + 1]])
+    dims = [block_dim[0], block_dim[1], block_dim[2]]
+    v_dim = dims[v_ax]
+    h_dim = dims[h_ax]
 
-    v_min, v_max = min(v_vals), max(v_vals)
-    h_min, h_max = min(h_vals), max(h_vals)
-    v_span = max(v_max - v_min, 1e-6)
-    h_span = max(h_max - h_min, 1e-6)
-    v_eps = 1e-6 * v_span
-    h_eps = 1e-6 * h_span
-
-    def _snap(x0, y0, x1, y1):
-        sx0 = round(x0 / v_eps) * v_eps
-        sy0 = round(y0 / h_eps) * h_eps
-        sx1 = round(x1 / v_eps) * v_eps
-        sy1 = round(y1 / h_eps) * h_eps
-        return sx0, sy0, sx1, sy1
-
-    edge_set = set()
     segments = []
-    for blk in blocks:
-        aabb = np.asarray(blk["aabb"], dtype=np.float64)
-        v0 = float(aabb[2 * v_ax])
-        v1 = float(aabb[2 * v_ax + 1])
-        h0 = float(aabb[2 * h_ax])
-        h1 = float(aabb[2 * h_ax + 1])
-        edges = [
-            (v0, h0, v1, h0),
-            (v1, h0, v1, h1),
-            (v1, h1, v0, h1),
-            (v0, h1, v0, h0),
-        ]
-        for x0, y0, x1, y1 in edges:
-            if (x1, y1) < (x0, y0):
-                x0, y0, x1, y1 = x1, y1, x0, y0
-            x0, y0, x1, y1 = _snap(x0, y0, x1, y1)
-            key = (x0, y0, x1, y1)
-            if key in edge_set:
-                continue
-            edge_set.add(key)
-            segments.append([float(x0), float(y0), float(x1), float(y1)])
+    if v_dim > 1:
+        for i in range(1, v_dim):
+            v = float(i) / v_dim
+            segments.append([v, 0.0, v, 1.0])
+    if h_dim > 1:
+        for j in range(1, h_dim):
+            h = float(j) / h_dim
+            segments.append([0.0, h, 1.0, h])
     return segments
 
 
@@ -122,12 +91,13 @@ def main():
                 )
                 block_id += 1
 
-    segments = _compute_segments(blocks, [0, 1, 2])
+    plane_indices = [0, 2, 1] if by == 1 else [0, 1, 2]
+    segments = _compute_uniform_segments(block_dim, plane_indices)
     payload = {
         "partition_type": "grid",
         "contracted_space": True,
         "aabb_format": "[minx, maxx, miny, maxy, minz, maxz]",
-        "plane_indices": [0, 1, 2],
+        "plane_indices": plane_indices,
         "segments": segments,
         "blocks": blocks,
     }
