@@ -74,14 +74,7 @@ def main():
                 max_y = float(y + 1) / by
                 min_z = float(z) / bz
                 max_z = float(z + 1) / bz
-                open_edges = [
-                    x == 0,
-                    x == bx - 1,
-                    y == 0,
-                    y == by - 1,
-                    z == 0,
-                    z == bz - 1,
-                ]
+                open_edges = [ False, False, False, False]
                 blocks.append(
                     {
                         "block_id": block_id,
