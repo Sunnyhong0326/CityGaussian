@@ -13,11 +13,12 @@ get_available_gpu() {
 # out_name="val"  # i.e. TEST_PATH.split('/')[-1]
 # max_block_id=8  # i.e. x_dim * y_dim * z_dim - 1
 port=4041
+SAVE_EVERY=${SAVE_EVERY:-200}
 
 # train coarse global gaussian model
 gpu_id=$(get_available_gpu)
 echo "GPU $gpu_id is available."
-CUDA_VISIBLE_DEVICES=$gpu_id python train_large.py --config config/$COARSE_CONFIG.yaml
+CUDA_VISIBLE_DEVICES=$gpu_id python train_large.py --config config/$COARSE_CONFIG.yaml --save_every $SAVE_EVERY
 
 # train CityGaussian
 # obtain data partitioning
@@ -25,21 +26,21 @@ gpu_id=$(get_available_gpu)
 echo "GPU $gpu_id is available."
 CUDA_VISIBLE_DEVICES=$gpu_id python data_partition.py --config config/$CONFIG.yaml
 
-# optimize each block, please adjust block number according to config
+#optimize each block, please adjust block number according to config
 for num in $(seq 0 $max_block_id); do
     while true; do
         gpu_id=$(get_available_gpu)
         if [[ -n $gpu_id ]]; then
             echo "GPU $gpu_id is available. Starting training block '$num'"
-            CUDA_VISIBLE_DEVICES=$gpu_id WANDB_MODE=offline python train_large.py --config config/$CONFIG.yaml --block_id $num --port $port &
+            CUDA_VISIBLE_DEVICES=$gpu_id WANDB_MODE=offline python train_large.py --config config/$CONFIG.yaml --block_id $num --port $port --save_every $SAVE_EVERY &
             # Increment the port number for the next run
             ((port++))
             # Allow some time for the process to initialize and potentially use GPU memory
-            sleep 120
+            sleep 60
             break
         else
             echo "No GPU available at the moment. Retrying in 2 minute."
-            sleep 120
+            sleep 60
         fi
     done
 done
@@ -57,4 +58,4 @@ CUDA_VISIBLE_DEVICES=$gpu_id python render_large.py --config config/$CONFIG.yaml
 
 gpu_id=$(get_available_gpu)
 echo "GPU $gpu_id is available."
-CUDA_VISIBLE_DEVICES=$gpu_id python metrics_large.py -m output/$CONFIG -t $out_name
+CUDA_VISIBLE_DEVICES=$gpu_id python metrics_large.py --config config/$CONFIG.yaml -t $out_name --use_cc

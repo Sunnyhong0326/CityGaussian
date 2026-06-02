@@ -5,17 +5,12 @@ model_params: {
         kwargs: {}
     },
     sh_degree: 3,
-    source_path: "/mnt/nfs/sunnyhong/data/non-COLMAP/urban_scene_3d/residence-pixsfm/train",
-    partition_name: "residence_c20_r4",
-    pretrain_path: "/mnt/nfs/sunnyhong/output/LoBEGS/coarse/non_colmap_ssim_no_BG/residence-pixsfm/coarse/point_cloud/iteration_30000",
-    model_path: "/mnt/nfs2/sunnyhong/output/CityGS/official/residence/residence_c20_r4",
+    source_path: "/mnt/nfs/sunnyhong/data/COLMAP/residence_split/train",
+    model_path: "/mnt/nfs/sunnyhong/output/CityGS/COLMAP/residence/residence_coarse",
     images: "images",
-    block_dim: [4, 1, 5],
-    aabb: [-25, -200, -270, 175, 200, 60],
-    ssim_threshold: 0.08,
     resolution: 4,
     white_background: False,
-    data_device: "cuda",
+    data_device: "cpu",
     eval: False,
 }
 
@@ -30,13 +25,13 @@ pipeline_params: {
 # Optimization Parameters
 optim_params: {
     iterations: 30_000,
-    position_lr_init: 0.000064,
-    position_lr_final: 0.00000064,
+    position_lr_init: 0.00016,
+    position_lr_final: 0.0000016,
     position_lr_delay_mult: 0.01,
     position_lr_max_steps: 30_000,
     feature_lr: 0.0025,
     opacity_lr: 0.05,
-    scaling_lr: 0.004,
+    scaling_lr: 0.005,
     rotation_lr: 0.001,
     percent_dense: 0.01,
     lambda_dssim: 0.2,

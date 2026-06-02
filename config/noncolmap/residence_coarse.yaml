@@ -5,12 +5,12 @@ model_params: {
         kwargs: {}
     },
     sh_degree: 3,
-    source_path: "data/mill19/rubble-pixsfm/train",
-    model_path: "",
+    source_path: "/mnt/nfs/sunnyhong/data/non-COLMAP/urban_scene_3d/residence-pixsfm/train",
+    model_path: "/mnt/nfs/sunnyhong/output/CityGS/noncolmap/residence/residence_coarse",
     images: "images",
     resolution: 4,
     white_background: False,
-    data_device: "cpu",
+    data_device: "cuda",
     eval: False,
 }
 

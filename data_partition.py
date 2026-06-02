@@ -7,7 +7,6 @@ import torch
 from tqdm import tqdm
 from pathlib import Path
 from argparse import ArgumentParser, Namespace
-from transforms3d.quaternions import mat2quat
 from scene import LargeScene
 from scene.gaussian_model import GaussianModel
 from gaussian_renderer import render
@@ -27,9 +26,11 @@ def block_partitioning(cameras, gaussians, args, pp, scale=1.0, quiet=False, dis
 
         if args.aabb is None:
             torch.cuda.empty_cache()
-            args.aabb = get_default_aabb(args, cameras, xyz_org, scale)
+            xyz_org = gaussians.get_xyz  # (N, 3)
+            args.aabb = get_default_aabb(args, cameras, xyz_org)
+            print("args.aabb", args.aabb)
             config_name = os.path.splitext(os.path.basename(args.config))[0]
-            np.save(os.path.join(args.source_path, "data_partitions", f"{config_name}_aabb.npy"), np.array(args.aabb.detach().cpu()))
+            np.save(os.path.join(args.model_path, "data_partitions", f"{config_name}_aabb.npy"), np.array(args.aabb.detach().cpu()))
         else:
             assert len(args.aabb) == 6, "Unknown args.aabb format!"
             args.aabb = torch.tensor(args.aabb, dtype=torch.float32, device=xyz_org.device)
@@ -151,8 +152,8 @@ if __name__ == "__main__":
     model_config = lp.model_config
     gaussians = getattr(modules, model_config['name'])(lp.sh_degree, **model_config['kwargs'])
     scene = LargeScene(lp, gaussians, shuffle=False)
-    if not os.path.exists(os.path.join(lp.source_path, "data_partitions")):
-        os.makedirs(os.path.join(lp.source_path, "data_partitions"))
+    if not os.path.exists(os.path.join(lp.model_path, "data_partitions")):
+        os.makedirs(os.path.join(lp.model_path, "data_partitions"))
     start_time = time.time()
     camera_mask = block_partitioning(scene.getTrainCameras(), gaussians, lp, pp, 1.0, args.quiet, args.disable_inblock, args.simple_selection)
     end_time = time.time()
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     with open(os.path.join(lp.model_path, "data_partition_time.log"), "a") as file:
         file.write(f"data partition elapsed_time:{format_seconds(elapsed_time)}\n")
     camera_mask = camera_mask.cpu().numpy()
-    np.save(os.path.join(lp.source_path, "data_partitions", f"{config_name}.npy"), camera_mask)
+    np.save(os.path.join(lp.model_path, "data_partitions", f"{config_name}.npy"), camera_mask)
 
     # All done
     print("\Partition complete.")

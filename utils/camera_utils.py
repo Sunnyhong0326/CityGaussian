@@ -13,7 +13,6 @@ from scene.cameras import Camera, LightCam
 import numpy as np
 from utils.general_utils import PILtoTorch
 from utils.graphics_utils import fov2focal
-from transforms3d.euler import euler2mat, mat2euler
 from PIL import Image
 
 WARNED = False

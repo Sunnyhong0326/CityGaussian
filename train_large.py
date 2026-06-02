@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader
 from argparse import ArgumentParser, Namespace
 from arguments import GroupParams
 from utils.general_utils import format_seconds
-from utils.profile_utils import write_optimization_profile
+from utils.profile_utils import write_optimization_profile, write_ply_save_time_profile
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter_iterations, checkpoint_iterations, checkpoint, max_cache_num, debug_from):
     first_iter = 0
@@ -62,6 +62,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter
     max_memory_allocated = 0.0
     start_time = time.time()
     end_time = start_time
+    accumulated_ply_io_time = 0.0
 
     viewpoint_stack = None
     ema_loss_for_log = 0.0
@@ -75,7 +76,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter
         if len(gs_dataset) == 0:
             print("No training data found")
             print("\n[ITER {}] Saving Gaussians".format(iteration))
+            elapsed_before_save = time.time() - start_time - accumulated_ply_io_time
+            save_start_time = time.time()
             scene.save(iteration, dataset)
+            accumulated_ply_io_time += time.time() - save_start_time
+            write_ply_save_time_profile(dataset, iteration, elapsed_before_save)
             break    
         
         for dataset_index, (cam_info, gt_image) in enumerate(data_loader):    
@@ -153,7 +158,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter
                                 iter_start.elapsed_time(iter_end), testing_iterations, scene, render_large, (pipe, background))
                 if (iteration in saving_iterations):
                     print("\n[ITER {}] Saving Gaussians".format(iteration))
+                    elapsed_before_save = time.time() - start_time - accumulated_ply_io_time
+                    save_start_time = time.time()
                     scene.save(iteration, dataset)
+                    accumulated_ply_io_time += time.time() - save_start_time
+                    write_ply_save_time_profile(dataset, iteration, elapsed_before_save)
                 if (iteration in refilter_iterations):
                     print("\n[ITER {}] Refiltering Training Data".format(iteration))
                     gs_dataset = GSDataset(scene.getTrainCameras(), scene, dataset, pipe)
@@ -187,7 +196,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, refilter
             if iteration >= opt.iterations:
                 break
     end_time = time.time()
-    elapsed_time = end_time - start_time
+    elapsed_time = end_time - start_time - accumulated_ply_io_time
 
     write_optimization_profile(dataset, max_memory_allocated, elapsed_time)
 
@@ -196,13 +205,13 @@ def prepare_output_and_logger(args):
         config_name = os.path.splitext(os.path.basename(args.config))[0]
         # time_stamp = time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))
         args.model_path = os.path.join("./output/", config_name)
-        if args.block_id >= 0:
-            if args.block_id < args.block_dim[0] * args.block_dim[1] * args.block_dim[2]:
-                args.model_path = f"{args.model_path}/cells/cell{args.block_id}"
-                if args.logger_config is not None:
-                    args.logger_config['name'] = f"{args.logger_config['name']}_cell{args.block_id}"
-            else:
-                raise ValueError("Invalid block_id: {}".format(args.block_id))
+    if args.block_id >= 0:
+        if args.block_id < args.block_dim[0] * args.block_dim[1] * args.block_dim[2]:
+            args.model_path = f"{args.model_path}/cells/cell{args.block_id}"
+            if args.logger_config is not None:
+                args.logger_config['name'] = f"{args.logger_config['name']}_cell{args.block_id}"
+        else:
+            raise ValueError("Invalid block_id: {}".format(args.block_id))
         
     args.profile_path = args.model_path
 
@@ -305,6 +314,7 @@ if __name__ == "__main__":
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
     parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
     parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--save_every", type=int, default=-1)
     parser.add_argument("--refilter_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
@@ -315,6 +325,8 @@ if __name__ == "__main__":
         cfg = yaml.load(f, Loader=yaml.FullLoader)
         lp, op, pp = parse_cfg(cfg, args)
         args.save_iterations.append(op.iterations)
+        if args.save_every != -1:
+            args.save_iterations = [i for i in range(0, op.iterations + 1, args.save_every)]
     
     print("Optimizing " + lp.model_path)
 

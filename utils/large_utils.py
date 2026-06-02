@@ -144,15 +144,44 @@ def get_default_aabb(args, cameras, xyz_org, scale=1.0):
     
     torch.cuda.empty_cache()
     c2ws = np.array([np.linalg.inv(np.asarray((loadCam_woImage(args, idx, cam, scale).world_view_transform.T).cpu().numpy())) for idx, cam in enumerate(cameras)])
-    poses = c2ws[:,:3,:] @ np.diag([1, -1, -1, 1])
-    center = (focus_point_fn(poses))
-    radius = torch.tensor(np.median(np.abs(c2ws[:,:3,3] - center), axis=0), device=xyz_org.device)
-    center = torch.from_numpy(center).float().to(xyz_org.device)
-    if radius.min() / radius.max() < 0.02:
-        # If the radius is too small, we don't contract in this dimension
-        radius[torch.argmin(radius)] = 0.5 * (xyz_org[:, torch.argmin(radius)].max() - xyz_org[:, torch.argmin(radius)].min())
-    aabb = torch.zeros(6, device=xyz_org.device)
-    aabb[:3] = center - radius
-    aabb[3:] = center + radius
+    print("c2w", c2ws.shape)
+    min_xyz = np.min(c2ws[:,:3,3], axis=0)
+    max_xyz = np.max(c2ws[:,:3,3], axis=0)
+    print("min xyz", min_xyz)
+    print("max xyz", max_xyz)
+    min_max_corners = min_xyz, max_xyz
+    block_dim = np.array(args.block_dim)  # [X, Y, Z]
+    up_axis = int(np.argmin(block_dim))   # 0: X, 1: Y, 2: Z
+    axis_names = ['X', 'Y', 'Z']
+    print(f"[INFO] Detected up axis: {axis_names[up_axis]} (index {up_axis})")
+    axes_2d = [i for i in range(3) if i != up_axis]  # the two horizontal axes
+    min_corner = min_max_corners[0][axes_2d]
+    max_corner = min_max_corners[1][axes_2d]
+    range_2d = max_corner - min_corner
+    min_corner = min_corner + range_2d / 4.0
+    max_corner = max_corner - range_2d / 4.0
+    aabb_2d = [min_corner, max_corner]  # shape (2, 2)
+    up_min = float(xyz_org[:, up_axis].min())
+    up_max = float(xyz_org[:, up_axis].max())
+    aabb = [0.0] * 6
+    aabb[axes_2d[0]] = aabb_2d[0][0]
+    aabb[axes_2d[1]] = aabb_2d[0][1]
+    aabb[up_axis] = up_min
+    aabb[3 + axes_2d[0]] = aabb_2d[1][0]
+    aabb[3 + axes_2d[1]] = aabb_2d[1][1]
+    aabb[3 + up_axis] = up_max
+    aabb = torch.tensor(aabb, device="cuda")
+    print("AABB", aabb)
+    
+    # poses = c2ws[:,:3,:] @ np.diag([1, -1, -1, 1])
+    # center = (focus_point_fn(poses))
+    # radius = torch.tensor(np.median(np.abs(c2ws[:,:3,3] - center), axis=0), device=xyz_org.device)
+    # center = torch.from_numpy(center).float().to(xyz_org.device)
+    # if radius.min() / radius.max() < 0.02:
+    #     # If the radius is too small, we don't contract in this dimension
+    #     radius[torch.argmin(radius)] = 0.5 * (xyz_org[:, torch.argmin(radius)].max() - xyz_org[:, torch.argmin(radius)].min())
+    # aabb = torch.zeros(6, device=xyz_org.device)
+    # aabb[:3] = center - radius
+    # aabb[3:] = center + radius
 
     return aabb

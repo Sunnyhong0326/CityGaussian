@@ -29,8 +29,9 @@ from arguments import ModelParams, PipelineParams, get_combined_args
 from gaussian_renderer import GaussianModel
 from torch.utils.data import DataLoader
 from utils.general_utils import parse_cfg
+from fused_bilagrid import color_correct
 
-def render_set(model_path, name, iteration, gs_dataset, gaussians, pipeline, background):
+def render_set(model_path, name, iteration, gs_dataset, gaussians, pipeline, background, use_color_correct: bool = True):
     avg_render_time = 0
     max_render_time = 0
     avg_memory = 0
@@ -38,11 +39,14 @@ def render_set(model_path, name, iteration, gs_dataset, gaussians, pipeline, bac
 
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
     gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
-
+    cc_renders_path = os.path.join(model_path, name, f"ours_{iteration}", "renders_cc")
+    
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
-
-    data_loader = DataLoader(gs_dataset, batch_size=1, shuffle=False, num_workers=0)
+    if use_color_correct:
+        makedirs(cc_renders_path, exist_ok=True)
+        
+    data_loader = DataLoader(gs_dataset, batch_size=None, shuffle=False, num_workers=0)
     for idx, (cam_info, gt_image) in enumerate(tqdm(data_loader, desc="Rendering progress")):   
         torch.cuda.reset_peak_memory_stats()
         torch.cuda.synchronize()
@@ -51,9 +55,14 @@ def render_set(model_path, name, iteration, gs_dataset, gaussians, pipeline, bac
         torch.cuda.synchronize()
         end = time.time()
         
-        gt = gt_image[0:3, :, :]
+        gt = gt_image[0:3, :, :].to("cuda")
         avg_render_time += end-start
         max_render_time = max(max_render_time, end-start)
+        gt_image = gt.permute(1, 2, 0)
+        image_rendered = torch.clamp(rendering, 0.0, 1.0).permute(1, 2, 0) # (H, W, C)
+        if use_color_correct:
+            image_rendered_cc = color_correct(image_rendered, gt_image) # (H, w, C)
+            image_render_cc = image_rendered_cc.permute(2,0,1)# (C, H, W)
 
         forward_max_memory_allocated = torch.cuda.max_memory_allocated() / (1024.0 ** 2)
         avg_memory += forward_max_memory_allocated
@@ -61,6 +70,8 @@ def render_set(model_path, name, iteration, gs_dataset, gaussians, pipeline, bac
 
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+        if use_color_correct:
+            torchvision.utils.save_image(image_render_cc, os.path.join(cc_renders_path, '{0:05d}'.format(idx) + ".png"))
     
     with open(model_path + "/costs.json", 'w') as fp:
         json.dump({
@@ -113,7 +124,7 @@ if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Testing script parameters")
     parser.add_argument('--config', type=str, help='train config file path of fused model')
-    parser.add_argument('--model_path', type=str, help='model path of fused model')
+    # parser.add_argument('--model_path', type=str, help='model path of fused model')
     parser.add_argument("--custom_test", type=str, help="appointed test path")
     parser.add_argument("--load_vq", action="store_true")
     parser.add_argument('--block_id', type=int, default=-1)
@@ -122,8 +133,8 @@ if __name__ == "__main__":
     parser.add_argument("--skip_test", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
-    if args.model_path is None:
-        args.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
+    # if args.model_path is None:
+    #     args.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
     if args.load_vq:
         args.iteration = 30000  # apply a default value
 

@@ -8,7 +8,7 @@ model_params: {
     source_path: "/mnt/nfs/sunnyhong/data/non-COLMAP/mill19/building-pixsfm/train",
     partition_name: "building_c20_r4",
     pretrain_path: "/mnt/nfs/sunnyhong/output/LoBEGS/coarse/non_colmap_ssim_no_BG/building-pixsfm/coarse/point_cloud/iteration_30000",
-    model_path: "",
+    model_path: "/mnt/nfs2/sunnyhong/output/CityGS/official/building/building_c20_r4",
     images: "images",
     block_dim: [4, 1, 5],
     aabb: [-140, -100, 0, -10, 900, 250],

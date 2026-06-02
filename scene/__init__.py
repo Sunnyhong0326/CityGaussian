@@ -120,9 +120,9 @@ class LargeScene(Scene):
         self.test_cameras = {}
 
         if args.block_id >= 0:
-            partition = np.load(os.path.join(args.source_path, "data_partitions", f"{args.partition_name}.npy"))[:, args.block_id]
+            partition = np.load(os.path.join(args.model_path, "..", "..", "data_partitions", f"{args.partition_name}.npy"))[:, args.block_id]
             if args.aabb is None:
-                args.aabb = np.load(os.path.join(args.source_path, "data_partitions", f"{args.partition_name}_aabb.npy")).tolist()
+                args.aabb = np.load(os.path.join(args.model_path, "..", "..", "data_partitions", f"{args.partition_name}_aabb.npy")).tolist()
             print(f"Using Partition File {args.partition_name}.npy")
         else:
             partition = None

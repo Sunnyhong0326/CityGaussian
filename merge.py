@@ -30,6 +30,7 @@ from gaussian_renderer import GaussianModel
 from arguments import ModelParams, PipelineParams, OptimizationParams, GroupParams
 from utils.loss_utils import l1_loss, ssim
 from utils.general_utils import parse_cfg
+from utils.system_utils import searchForMaxIteration
 
 def readImages(renders_dir, gt_dir):
     renders = []
@@ -51,6 +52,7 @@ def blockMerge(lp, iteration):
         for idx in range(num_blocks):
             gaussians = GaussianModel(lp.sh_degree)
             try:
+                iteration = searchForMaxIteration(os.path.join(out_dir, f"cells/cell{idx}", "point_cloud_blocks", "scale_1.0"))
                 gaussians.load_ply(os.path.join(out_dir, f"cells/cell{idx}", "point_cloud_blocks", "scale_1.0",
                                                 "iteration_" + str(iteration),
                                                 "point_cloud.ply"))
@@ -93,11 +95,11 @@ if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Training script parameters")
     parser.add_argument('--config', type=str, help='train config file path')
-    parser.add_argument('--model_path', type=str, help='model path of fused model')
-    parser.add_argument("--iteration", default=30_000, type=int)
+    # parser.add_argument('--model_path', type=str, help='model path of fused model')
+    parser.add_argument("--iteration", default=1_000, type=int)
     args = parser.parse_args(sys.argv[1:])
-    if args.model_path is None:
-        args.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
+    # if args.model_path is None:
+    #     args.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
 
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)

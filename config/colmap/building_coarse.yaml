@@ -5,12 +5,12 @@ model_params: {
         kwargs: {}
     },
     sh_degree: 3,
-    source_path: "data/my_scene/train",  # adjust it to your own dataset
-    model_path: "",  # leave it blank
+    source_path: "/mnt/nfs/sunnyhong/data/COLMAP/building_split/train",
+    model_path: "/mnt/nfs/sunnyhong/output/CityGS/COLMAP/building/building_coarse",
     images: "images",
-    resolution: -1,  # adjust it to your downsample factor. -1 means downsampling longest side of image to 1,600 pixels
+    resolution: 4,
     white_background: False,
-    data_device: "cuda",
+    data_device: "cpu",
     eval: False,
 }
 
@@ -23,16 +23,15 @@ pipeline_params: {
 
 
 # Optimization Parameters
-# Adjust the parameters according to your dataset
 optim_params: {
     iterations: 30_000,
-    position_lr_init: 0.00016,
-    position_lr_final: 0.0000016,
+    position_lr_init: 0.00008,
+    position_lr_final: 0.0000008,
     position_lr_delay_mult: 0.01,
     position_lr_max_steps: 30_000,
     feature_lr: 0.0025,
     opacity_lr: 0.05,
-    scaling_lr: 0.005,
+    scaling_lr: 0.0025,
     rotation_lr: 0.001,
     percent_dense: 0.01,
     lambda_dssim: 0.2,

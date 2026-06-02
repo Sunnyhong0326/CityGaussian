@@ -5,16 +5,17 @@ model_params: {
         kwargs: {}
     },
     sh_degree: 3,
-    source_path: "data/my_scene/train",  # adjust it to your own dataset
-    partition_name: "my_partition",  # adjust it to the name you want
-    pretrain_path: "output/my_scene_coarse/point_cloud/iteration_30000",  # adjust it to the output path of your coarse model
-    model_path: "",  # leave it blank
+    source_path: "/mnt/nfs/sunnyhong/data/non-COLMAP/mill19/rubble-pixsfm/train",
+    partition_name: "rubble_c9_r4",
+    pretrain_path: "/mnt/nfs/sunnyhong/output/CityGS/noncolmap/rubble/rubble_coarse/point_cloud/iteration_30000",
+    model_path: "/mnt/nfs/sunnyhong/output/CityGS/noncolmap/rubble/rubble_c9_r4",
     images: "images",
-    block_dim: [$X, $Y, $Z],  # replace $X, $Y, $Z with your block dimension along x, y, z axis
-    # aabb: [$x_min, $y_min, $z_min, $x_max, $y_max, $z_max],  # Uncomment this line if you want to appoint your own aabb definition
-    resolution: -1,  # adjust it to your downsample factor. -1 means downsampling longest side of image to 1,600 pixels
+    block_dim: [3, 1, 3],
+    aabb: [-50, -100, -135, 50, 300, -5],
+    ssim_threshold: 0.12,
+    resolution: 4,
     white_background: False,
-    data_device: "cuda",
+    data_device: "cpu",
     eval: False,
 }
 
@@ -27,7 +28,6 @@ pipeline_params: {
 
 
 # Optimization Parameters
-# Adjust the parameters according to your dataset
 optim_params: {
     iterations: 30_000,
     position_lr_init: 0.000064,
