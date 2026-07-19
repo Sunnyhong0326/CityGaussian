@@ -126,6 +126,8 @@ if __name__ == "__main__":
     parser.add_argument('--config', type=str, help='train config file path of fused model')
     # parser.add_argument('--model_path', type=str, help='model path of fused model')
     parser.add_argument("--custom_test", type=str, help="appointed test path")
+    parser.add_argument("--eval", action="store_true",
+                        help="load transforms_test.json as the test split (overrides eval in the config)")
     parser.add_argument("--load_vq", action="store_true")
     parser.add_argument('--block_id', type=int, default=-1)
     parser.add_argument("--iteration", default=-1, type=int)
@@ -144,5 +146,9 @@ if __name__ == "__main__":
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
         lp, op, pp = parse_cfg(cfg, args)
+
+    # When only the test split is rendered, let the MatrixCity reader skip
+    # parsing the (much larger) train transforms entirely.
+    lp.skip_train_cams = args.skip_train and lp.eval
 
     render_sets(lp, args.iteration, pp, args.load_vq, args.skip_train, args.skip_test, args.custom_test)

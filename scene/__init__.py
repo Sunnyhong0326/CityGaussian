@@ -18,7 +18,7 @@ import torch
 import numpy as np
 from utils.system_utils import searchForMaxIteration
 from utils.graphics_utils import BasicPointCloud
-from scene.dataset_readers import sceneLoadTypeCallbacks, storePly, SceneInfo
+from scene.dataset_readers import sceneLoadTypeCallbacks, storePly, SceneInfo, isMatrixCityScene
 from scene.gaussian_model import GaussianModel, GaussianModelLOD, GatheredGaussian
 from arguments import ModelParams, GroupParams
 from plyfile import PlyData, PlyElement
@@ -48,6 +48,9 @@ class Scene:
 
         if os.path.exists(os.path.join(args.source_path, "sparse")):
             scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval)
+        elif isMatrixCityScene(args.source_path):
+            print("Detected MatrixCity/BigCity dataset (transforms_train.json + *.ply + train/)")
+            scene_info = sceneLoadTypeCallbacks["MatrixCity"](args.source_path, args.eval)
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)
@@ -129,6 +132,10 @@ class LargeScene(Scene):
 
         if os.path.exists(os.path.join(args.source_path, "sparse")):
             scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval, args.llffhold, partition=partition)
+        elif isMatrixCityScene(args.source_path):
+            print("Detected MatrixCity/BigCity dataset (transforms_train.json + *.ply + train/)")
+            scene_info = sceneLoadTypeCallbacks["MatrixCity"](args.source_path, args.eval, partition=partition,
+                                                              load_train=getattr(args, "load_train_cameras", True))
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)

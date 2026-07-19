@@ -109,7 +109,14 @@ def fetchPly(path):
     vertices = plydata['vertex']
     positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
     colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T / 255.0
-    normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
+    field_names = vertices.data.dtype.names or ()
+    if 'nx' in field_names and 'ny' in field_names and 'nz' in field_names:
+        normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
+    else:
+        # Fall back to zero normals for PLYs that don't carry them (e.g.
+        # MatrixCity BigCity's all_ds32_*.ply). Matches vanilla
+        # gaussian-splatting/scene/dataset_readers.py.
+        normals = np.zeros_like(positions)
     return BasicPointCloud(points=positions, colors=colors, normals=normals)
 
 def storePly(path, xyz, rgb):
@@ -268,7 +275,145 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
                            ply_path=ply_path)
     return scene_info
 
+def _matrixcity_frame_image_name(frame, extension=".png"):
+    image_name = frame.get("file_name", frame.get("file_path", ""))
+    if not image_name:
+        raise KeyError("MatrixCity frame is missing both 'file_name' and 'file_path'.")
+    if Path(image_name).suffix:
+        return image_name
+    return f"{image_name}{extension}"
+
+def _matrixcity_image_path(path, mode, image_name):
+    root = Path(path)
+    candidates = [
+        root.parent.parent / mode / image_name,
+        root / mode / image_name,
+        root.parent / mode / image_name,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return str(candidates[0])
+
+def isMatrixCityScene(path):
+    root = Path(path)
+    transforms_path = root / "transforms_train.json"
+    if not transforms_path.exists() or not any(root.glob("*.ply")):
+        return False
+
+    train_root_candidates = [root.parent.parent / "train", root / "train", root.parent / "train"]
+    return any(candidate.is_dir() for candidate in train_root_candidates)
+
+def readMatrixCityCameras(path, transformsfile, mode, extension=".png"):
+    transforms_path = Path(path) / transformsfile
+    with transforms_path.open("r", encoding="utf-8") as json_file:
+        contents = json.load(json_file)
+
+    fovx = contents.get("camera_angle_x")
+    fl_x = contents.get("fl_x")
+    fl_y = contents.get("fl_y")
+    cam_infos = []
+
+    frames = contents["frames"]
+    for idx, frame in enumerate(frames):
+        if idx == 0 or (idx + 1) % 1000 == 0 or idx + 1 == len(frames):
+            sys.stdout.write('\r')
+            sys.stdout.write("Reading MatrixCity {} camera {}/{}".format(mode, idx + 1, len(frames)))
+            sys.stdout.flush()
+
+        image_name = _matrixcity_frame_image_name(frame, extension)
+        image_path = _matrixcity_image_path(path, mode, image_name)
+        if not os.path.exists(image_path):
+            print(f"\nFile {image_path} not found, skipping...")
+            continue
+
+        c2w = np.array(frame["transform_matrix"], dtype=np.float64)
+        # OpenGL/Blender axes (Y up, Z back) -> COLMAP axes (Y down, Z forward)
+        c2w[:3, 1:3] *= -1
+        w2c = np.linalg.inv(c2w)
+        R = np.transpose(w2c[:3, :3])
+        T = w2c[:3, 3]
+
+        # PIL's Image.open is lazy; keep the handle alive on CameraInfo.image
+        # to match readColmapCameras / readCamerasFromTransforms.
+        image = Image.open(image_path)
+        width, height = image.size
+
+        frame_fl_x = frame.get("fl_x", fl_x)
+        frame_fl_y = frame.get("fl_y", fl_y)
+        if fovx is not None:
+            FovX = fovx
+            FovY = focal2fov(fov2focal(fovx, width), height)
+        elif frame_fl_x is not None and frame_fl_y is not None:
+            FovX = focal2fov(frame_fl_x, width)
+            FovY = focal2fov(frame_fl_y, height)
+        else:
+            raise KeyError(f"MatrixCity camera intrinsics missing in {transforms_path}")
+
+        cam_infos.append(CameraInfo(
+            uid=len(cam_infos),
+            R=R,
+            T=T,
+            FovY=FovY,
+            FovX=FovX,
+            image=image,
+            image_path=image_path,
+            image_name=Path(image_name).stem,
+            width=width,
+            height=height,
+        ))
+
+    sys.stdout.write('\n')
+    return cam_infos
+
+def readMatrixCityInfo(path, eval, partition=None, extension=".png", load_train=True):
+    print(f"Reading MatrixCity BigCity dataset from {path}")
+    if load_train:
+        train_cam_infos = readMatrixCityCameras(path, "transforms_train.json", "train", extension)
+
+        # Deterministic order so partition indices are stable across runs;
+        # data_partition.py builds its mask against this same ordering.
+        train_cam_infos = sorted(train_cam_infos, key=lambda c: c.image_path)
+        train_cam_infos = [c._replace(uid=i) for i, c in enumerate(train_cam_infos)]
+
+        # Mirror readColmapSceneInfo:149-155 partition filter, including the
+        # >=50 fallback that keeps tiny blocks from becoming empty.
+        if partition is not None:
+            filtered_cam_infos = [train_cam_infos[i] for i in range(partition.shape[0]) if partition[i]]
+            train_cam_infos = filtered_cam_infos if len(filtered_cam_infos) >= 50 else train_cam_infos
+            print(f"Filtered Cameras: {len(filtered_cam_infos)}. ")
+    else:
+        # Test-only rendering (e.g. render_large.py --eval --skip_train):
+        # skip parsing the (much larger) train split entirely.
+        train_cam_infos = []
+
+    test_json_path = Path(path) / "transforms_test.json"
+    if eval and test_json_path.exists():
+        test_cam_infos = readMatrixCityCameras(path, "transforms_test.json", "test", extension)
+    else:
+        test_cam_infos = []
+
+    print(f"Train cameras: {len(train_cam_infos)}, Test cameras: {len(test_cam_infos)}")
+
+    # cameras_extent is unused when loading a trained model, but getNerfppNorm
+    # needs a non-empty camera list; fall back to test cams in test-only mode.
+    nerf_normalization = getNerfppNorm(train_cam_infos if train_cam_infos else test_cam_infos)
+
+    ply_candidates = sorted(Path(path).glob("*.ply"))
+    if not ply_candidates:
+        raise FileNotFoundError(f"No MatrixCity initial point cloud .ply found in {path}")
+    ply_path = str(ply_candidates[0])
+    print(f"[INFO] MatrixCity initial point cloud: {ply_path}")
+    pcd = fetchPly(ply_path)
+
+    return SceneInfo(point_cloud=pcd,
+                     train_cameras=train_cam_infos,
+                     test_cameras=test_cam_infos,
+                     nerf_normalization=nerf_normalization,
+                     ply_path=ply_path)
+
 sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
-    "Blender" : readNerfSyntheticInfo
+    "Blender" : readNerfSyntheticInfo,
+    "MatrixCity": readMatrixCityInfo,
 }
